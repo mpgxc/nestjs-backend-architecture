@@ -1,0 +1,110 @@
+{
+  "skill_name": "nestjs-backend-architecture",
+  "evals": [
+    {
+      "id": 0,
+      "name": "new-context-cqs-split",
+      "prompt": "Preciso criar uma feature de cobranças (charges) no nosso serviço. Endpoint pra criar uma cobrança e outro pra listar as cobranças de um cliente.",
+      "expected_output": "contexts/charges/ with single controller, use-cases/create-charge.use-case.ts (Input/Output/class, returns minimal Output), services/charges.query-service.ts injecting DataSource, flat domain/ with entity, value objects and ChargeRepository abstract class, adapters/ with TypeORM repository, module wiring with provide/useClass",
+      "assertions": [
+        "States the chosen architecture level before the code",
+        "Uses src/contexts/charges/ layout, not global controllers/services folders",
+        "Value objects and the port are files directly in domain/, with no value-objects/ or ports/ subfolder",
+        "Create action is a dedicated use-case file with Input, Output and class together",
+        "Create returns a minimal Output (the id), not the whole aggregate",
+        "List action is in a query service under services/, NOT a repository method",
+        "Query service injects TypeORM DataSource directly and caps the page size",
+        "Port is declared as abstract class, not interface, with no Symbol token and no @Inject()",
+        "Business errors are returned inline as Result.Err({ type, message }), not thrown and not error classes",
+        "Controller maps DTO to Input explicitly and returns the use-case Result as-is, with no if on isErr and no status mapping",
+        "Result → HTTP translation happens in a global ResultInterceptor + BusinessErrorFilter registered via APP_INTERCEPTOR / APP_FILTER, using the BUSINESS_ERROR_STATUS map",
+        "Module wires port to adapter via { provide: X, useClass: Y }"
+      ],
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "code-style-guard-clauses",
+      "prompt": "Escreve o use-case de bloquear conta: recebe accountId e motivo, busca a conta, se não existir retorna erro, se já estiver bloqueada retorna erro, senão bloqueia e salva.",
+      "expected_output": "Level-1 use-case: started log, guard clauses with braces returning Result.Err inline, block transition on the entity (tell don't ask), save, finished log, Result.Ok(); no log-and-rethrow try/catch",
+      "assertions": [
+        "Every if has opening and closing braces; no single-line if",
+        "No else anywhere in the use-case",
+        "No nested if; method stays at one indentation level",
+        "Guard clauses return early, one condition per guard, with the happy path at the bottom",
+        "The 'already blocked' rule lives in the Account entity (account.block() returns Result), not in the use-case reading status",
+        "Guards use `if (x.isErr) { return x; }` with the narrowed Err returned as-is",
+        "No inline comments; only docstrings if any",
+        "Logs are inline structured objects via injected Logger with the class name as context",
+        "Command returns Result<void, BusinessError> and succeeds with Result.Ok()",
+        "No try/catch that only logs and rethrows; infrastructure failures propagate to the global filter"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "outbox-pubsub-idempotency",
+      "prompt": "Quando o boleto é pago a gente precisa avisar o serviço de ledger e o de notificações. Como implemento isso?",
+      "expected_output": "Aggregate records event, repository drains it to the outbox in the same transaction, relay with FOR UPDATE SKIP LOCKED publishes envelope to SNS, one SQS queue per consumer, consumers in workers/ that dedupe by eventId marking processed only after success, idempotent operations",
+      "assertions": [
+        "Event is written to the outbox in the same transaction as the state change, drained by the repository",
+        "Does not use an in-process event handler that writes to the outbox outside the transaction",
+        "Relay uses FOR UPDATE SKIP LOCKED",
+        "Each consumer has its own SQS queue subscribed to the SNS topic",
+        "Consumers live in contexts/<ctx>/workers/ and delegate to a use-case",
+        "Dedupe by eventId never claims before processing; marks processed after success or in the same transaction",
+        "Mentions at-least-once delivery as the reason idempotency is required"
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "external-api-integration-acl",
+      "prompt": "Integra com a API da Acme pra emitir o boleto",
+      "expected_output": "Low-level AcmeClient in infrastructure/integrations/acme with typed AcmeApiError and resilience policy; adapter in contexts/<ctx>/adapters implementing a domain port; mapper; translation of business outcomes to Result.Err and availability faults thrown; idempotency key; per-vendor HttpModule",
+      "assertions": [
+        "Separates low-level client (infrastructure/integrations/acme/) from the adapter/ACL (context adapters/)",
+        "Client throws a typed AcmeApiError, never a raw AxiosError",
+        "Adapter implements a domain port declared as abstract class in domain/",
+        "Vendor DTO shape does not leak into the domain",
+        "Business outcomes become Result.Err; timeouts, 5xx, 429 and open circuit are thrown",
+        "Sets a timeout and a circuit breaker that ignores 4xx business responses",
+        "Sends our own id as idempotency key"
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "cron-worker-batch",
+      "prompt": "Preciso de um job que roda a cada 5 minutos e reconcilia as recargas pendentes consultando o status na Acme.",
+      "expected_output": "workers/reconcile-recharges.cron.ts thin adapter with @Cron calling a batch use-case; use-case claims a batch safely for multiple replicas, loops with body extracted to a private method, logs start/branches/end, retry decision in a domain service",
+      "assertions": [
+        "Cron adapter lives in contexts/recharges/workers/ and only schedules and calls the use-case",
+        "Cron adapter has no try/catch and no business logic",
+        "Use-case processes the batch in one execute() and extracts the loop body to a private method",
+        "Batch claim is safe across multiple ECS replicas (SKIP LOCKED lease or conditional transition)",
+        "One item's business failure is logged and does not abort the batch",
+        "Retry threshold decision is in the domain (domain service or entity), not in the use-case",
+        "Code follows braces/no-else/no-nested-if rules"
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "level-0-crud-stays-light",
+      "prompt": "Cria um CRUD de categorias de produto: nome, descrição e se está ativa. Listagem paginada e edição.",
+      "expected_output": "Declares level 0; contexts/product-categories with controller, DTOs, use-cases for create/update, domain/ with a plain type and repository port, TypeORM adapter, query service for the list; no value objects, no entity class with factory/restore, no AggregateRoot, no outbox, no workers",
+      "assertions": [
+        "Declares the context as level 0 (no invariants, no integration)",
+        "Domain is a plain exported type plus an abstract-class repository port",
+        "No value object wrapping name or description",
+        "No AggregateRoot, no domain events, no outbox in the repository",
+        "No workers/ folder and no domain service",
+        "Use-cases still return Result and the controller returns it as-is",
+        "Listing uses a query service with DataSource and a capped page size",
+        "Code follows braces/no-else/no-nested-if rules"
+      ],
+      "files": []
+    }
+  ]
+}

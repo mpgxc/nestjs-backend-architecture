@@ -1,0 +1,9 @@
+{
+  "name": "nestjs-backend-architecture",
+  "version": "1.0.0",
+  "description": "Pragmatic architecture and code-style conventions for TypeScript/NestJS backend services: architecture levels, contexts layout, use-cases, CQS, Result pattern, ports, DDD, outbox, SQS, idempotency, resilience, logging, REST and testing.",
+  "author": { "name": "mpgxc", "email": "mpgx5.c@gmail.com" },
+  "repository": "https://github.com/mpgxc/nestjs-backend-architecture",
+  "license": "MIT",
+  "keywords": ["nestjs", "typescript", "backend", "architecture", "ddd", "cqs", "hexagonal", "fintech"]
+}

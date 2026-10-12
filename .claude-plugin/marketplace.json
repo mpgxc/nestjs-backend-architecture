@@ -1,0 +1,19 @@
+{
+  "name": "mpgxc",
+  "owner": {
+    "name": "mpgxc",
+    "email": "mpgx5.c@gmail.com"
+  },
+  "metadata": {
+    "description": "Claude Code skills for pragmatic NestJS backend architecture."
+  },
+  "plugins": [
+    {
+      "name": "nestjs-backend-architecture",
+      "source": "./",
+      "description": "Pragmatic architecture and code-style conventions for TypeScript/NestJS backend services.",
+      "version": "1.0.0",
+      "category": "development"
+    }
+  ]
+}
